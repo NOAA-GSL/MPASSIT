@@ -99,7 +99,6 @@
  integer                                :: is, ie, ierr
  
  !Namelist variables that are used to create global variables
- !real                                   :: dx,dy
  integer                                :: nx,ny
 
  namelist /config/ grid_file_input_grid, diag_file_input_grid, hist_file_input_grid, &
