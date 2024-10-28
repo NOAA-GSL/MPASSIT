@@ -127,7 +127,7 @@
    type(realptr_2d),allocatable       :: fptr2(:)
    type(realptr_3d),allocatable       :: fptr3(:)
    character(len=50)                  :: fname
-   integer                            :: num_fields, i, j, k, ij, l(1), u(1), rc
+   integer                            :: num_fields, i, j, k, ij, l(1), u(1), rc, ndims
    integer                           :: isrctermprocessing
    isrctermprocessing = 1
 
@@ -156,11 +156,8 @@
     if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
      call error_handler("IN FieldBundleGet", rc)
 
-   if (nd==2) then
-      allocate(fptr2(num_fields))
-   elseif (nd==3) then
-      allocate(fptr3(num_fields))
-   endif
+   allocate(fptr2(num_fields))
+   allocate(fptr3(num_fields))
 
    do i=1, num_fields
      call ESMF_FieldBundleGet(out_bundle,i,field,rc=rc)
@@ -169,12 +166,17 @@
      call ESMF_FieldGet(field,name=fname,rc=rc)
        if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
            call error_handler("IN FieldGet", rc)
-     if (nd==2) then
+     if (fname=="REFL_10CM") then
+        ndims = 3
+     else
+        ndims = nd
+     endif
+     if (ndims==2) then
         if(localpet==0) print*, '- FIELDGET 2D', fname
         call ESMF_FieldGet(field,farrayPtr=fptr2(i)%p,rc=rc)
          if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
            call error_handler("IN FieldGet", rc)
-     elseif (nd==3) then
+     elseif (ndims==3) then
         if(localpet==0) print*, '- FIELDGET 3D', fname
         call ESMF_FieldGet(field,farrayPtr=fptr3(i)%p,rc=rc)
          if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
@@ -186,8 +188,20 @@
    do ij = l(1), u(1)
         call ij_to_i_j(unmapped_ptr(ij), nx, ny, i, j)
         do k = 1, num_fields
-           if (nd==2) fptr2(k)%p(i,j) = missing_value
-           if (nd==3) fptr3(k)%p(i,j,:) = missing_value 
+           call ESMF_FieldBundleGet(out_bundle,k,field,rc=rc)
+            if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
+              call error_handler("IN FieldBundleGet", rc)
+           call ESMF_FieldGet(field,name=fname,rc=rc)
+            if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
+              call error_handler("IN FieldGet", rc)
+           if (fname=="REFL_10CM") then
+              ndims = 3
+           else
+              ndims = nd
+           endif
+           if(localpet==0) print*, k, ndims
+           if (ndims==2) fptr2(k)%p(i,j) = missing_value
+           if (ndims==3) fptr3(k)%p(i,j,:) = missing_value 
         enddo
    enddo
    if (allocated(fptr2)) deallocate(fptr2)

@@ -26,7 +26,7 @@ contains
         use program_setup, only: interp_diag, interp_hist, &
                                  wrf_mod_vars, truelat1, truelat2, &
                                  stand_lon, proj_code, map_proj_char, &
-                                 i_target, j_target, dx, &
+                                 i_target, j_target, dxkm, &
                                  ref_lat, ref_lon, pole_lat, &
                                  pole_lon, missing_value
 
@@ -183,10 +183,10 @@ contains
             error = nf90_put_att(ncid, NF90_GLOBAL, 'START_DATE', start_time)
             call netcdf_err(error, 'DEFINING START DATE GLOBAL ATTRIBUTE')
 
-            error = nf90_put_att(ncid, NF90_GLOBAL, 'DX', dx)
+            error = nf90_put_att(ncid, NF90_GLOBAL, 'DX', dxkm)
             call netcdf_err(error, 'DEFINING DX GLOBAL ATTRIBUTE')
 
-            error = nf90_put_att(ncid, NF90_GLOBAL, 'DY', dx)
+            error = nf90_put_att(ncid, NF90_GLOBAL, 'DY', dxkm)
             call netcdf_err(error, 'DEFINING DY GLOBAL ATTRIBUTE')
 
             error = nf90_put_att(ncid, NF90_GLOBAL, 'DT', config_dt)
@@ -1314,6 +1314,8 @@ contains
 
         !    3d fields from diaglist
 
+        if (allocated(dum3d)) deallocate(dum3d)
+        allocate(dum3d(clb(1):cub(1),clb(2):cub(2),nz_input))
         if (n3d > 0) then
             print *, "Loop writing over ", n3d, "3-d nz vars"
             do i = 1, n3d

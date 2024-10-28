@@ -179,7 +179,7 @@
                                           !< with vertical dimension nVertLevelsp1
  integer, public                       :: n_hist_fields_soil
                                           !< number of soil fields read from the hist file
- integer, public                       :: diag_out_interval
+ real, public                          :: diag_out_interval
                                           !< output_interval from diag file
  integer, public                       :: do_u_interp           
                                           !< whether 3d u is requested for interpolation
