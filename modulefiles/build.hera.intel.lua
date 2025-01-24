@@ -1,28 +1,26 @@
 help([[
-loads UFS Model prerequisites for Hera/Intel
+This module loads libraries for MPASSIT
 ]])
 
-prepend_path("MODULEPATH", "/scratch1/NCEPDEV/nems/role.epic/spack-stack/spack-stack-1.5.1/envs/unified-env-rocky8/install/modulefiles/Core")
+whatis([===[Loads libraries for rrfs-workflow ]===])
+prepend_path("MODULEPATH", "/scratch1/NCEPDEV/nems/role.epic/spack-stack/spack-stack-1.6.0/envs/unified-env-rocky8/install/modulefiles/Core")
 
-stack_intel_ver=os.getenv("stack_intel_ver") or "2021.5.0"
-load(pathJoin("stack-intel", stack_intel_ver))
+load("stack-intel/2021.5.0")
+load("stack-intel-oneapi-mpi/2021.5.1")
+load("cmake/3.23.1")
+load("gnu")
+load("intel/2022.1.2")
+load("impi/2022.1.2")
 
-stack_impi_ver=os.getenv("stack_impi_ver") or "2021.5.1"
-load(pathJoin("stack-intel-oneapi-mpi", stack_impi_ver))
+load("pnetcdf/1.7.0")
+load("szip")
+load("hdf5parallel/1.10.6")
+load("netcdf-hdf5parallel/4.7.4")
+load("jasper/2.0.32")
+load("zlib/1.2.13")
+load("libpng/1.6.37")
+load("esmf/8.5.0")
 
-cmake_ver=os.getenv("cmake_ver") or "3.23.1"
-load(pathJoin("cmake", cmake_ver))
-
-load("ufs_common")
-
-setenv("PNETCDF","/apps/pnetcdf/1.12.3/intel_2023.2.0-impi")
-
-nccmp_ver=os.getenv("nccmp_ver") or "1.9.0.1"
-load(pathJoin("nccmp", nccmp_ver))
-
-setenv("CC", "mpiicc")
-setenv("CXX", "mpiicpc")
-setenv("FC", "mpiifort")
-setenv("CMAKE_Platform", "hera.intel")
-
-whatis("Description: UFS build environment")
+setenv("CMAKE_C_COMPILER", "mpiicc")
+setenv("CMAKE_CXX_COMPILER", "mpiicpc")
+setenv("CMAKE_Fortran_COMPILER", "mpiifort")
