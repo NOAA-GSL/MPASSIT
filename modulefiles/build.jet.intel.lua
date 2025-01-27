@@ -1,33 +1,25 @@
 help([[
-Load environment to compile MPASSIT for MPAS-WoFS on Jet
+This module loads libraries for MPASSIT
 ]])
 
-whatis("Description: MPASSIT build environment")
+whatis([===[Loads libraries for rrfs-workflow ]===])
+prepend_path("MODULEPATH", "/contrib/spack-stack/spack-stack-1.6.0/envs/unified-env-rocky8/install/modulefiles/Core")
 
-cmake_ver=os.getenv("cmake_ver") or "3.28.1"
-load(pathJoin("cmake", cmake_ver))
+load("stack-intel/2021.5.0")
+load("stack-intel-oneapi-mpi/2021.5.1")
+load("cmake/3.23.1")
+load("gnu")
+load("intel/2022.1.2")
+load("impi/2022.1.2")
 
-load(pathJoin("gnu","9.2.0"))
-
-load(pathJoin("intel","2023.2.0"))
-load(pathJoin("impi","2023.2.0"))
-
-load(pathJoin("pnetcdf","1.12.3"))
+load("pnetcdf/1.7.0")
 load("szip")
-load(pathJoin("hdf5parallel","1.10.5"))
-load(pathJoin("netcdf-hdf5parallel","4.7.0"))
-
-setenv("PNETCDF","/apps/pnetcdf/1.12.3/intel_2023.2.0-impi")
-
-prepend_path("LD_LIBRARY_PATH", "/lfs4/NAGAPE/wof/miniconda3_RL/lib")   -- contains the grib2 libraries that are needed for the WPS compile
-prepend_path("CPATH",           "/usr/include/tirpc")                   -- only be important to the WRF build
-
--- # the Jasper environment settings for WPS
-setenv("JASPERLIB", "/lfs4/NAGAPE/wof/miniconda3_RL/lib")
-setenv("JASPERINC", "/lfs4/NAGAPE/wof/miniconda3_RL/lib/include/jasper")
-
--- # ESMF V8.6 for MPASSIT
-setenv("ESMFMKFILE", "/lfs4/NAGAPE/hpc-wof1/ywang/tools/esmf-8.6.0/lib/libO/Linux.intel.64.intelmpi.default/esmf.mk")
+load("hdf5parallel/1.10.6")
+load("netcdf-hdf5parallel/4.7.4")
+load("jasper/2.0.32")
+load("zlib/1.2.13")
+load("libpng/1.6.37")
+load("esmf/8.5.0")
 
 setenv("CMAKE_C_COMPILER", "mpiicc")
 setenv("CMAKE_CXX_COMPILER", "mpiicpc")
