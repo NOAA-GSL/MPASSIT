@@ -90,7 +90,7 @@ elif [[ -d /glade ]] ; then
     module purge
 elif [[ -d /ncrc ]] ; then
     target=gaea
-elif [[ "$(hostname)" =~ "Orion" ]]; then
+elif [[ "$(hostname)" =~ "orion" ]]; then
     target="orion"
     module purge
 elif [[ "$(hostname)" =~ "hercules" ]]; then
