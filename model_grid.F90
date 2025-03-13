@@ -118,6 +118,8 @@
                                            !grid
  real(esmf_kind_r8), allocatable , public :: zs_target_grid(:,:)
                                           !< soil center depth, target grid
+ real(esmf_kind_r8), allocatable , public :: dzs_target_grid(:,:)
+                                          !< soil layer thickness, target grid
  type(esmf_field), public               :: hgt_input_grid, hgt_target_grid
                                           !< surface elevation, target grid
  type(esmf_field), public               :: mapfac_m_target_grid
@@ -348,6 +350,7 @@
  
  allocate(vertOnCell(maxEdges,nCells))
  allocate(zs_target_grid(nsoil_input,1))
+ allocate(dzs_target_grid(nsoil_input,1))
 
  ! GET CELL CENTER LAT/LON
  if (localpet==0) print*,'- READ LONCELL ID'
@@ -391,6 +394,15 @@
  if (localpet==0) print*,'- READ ZS'
  error=nf90_get_var(ncid, id_var, start=(/1,1/),count=(/nsoil_input,1/),values=zs_target_grid)
  call netcdf_err(error, 'reading ZS')
+
+  ! SOIL LAYER THICKNESSES
+ if (localpet==0) print*,'- READ DZS ID'
+ error=nf90_inq_varid(ncid, 'dzs', id_var)
+ call netcdf_err(error, 'reading dzs id')
+
+ if (localpet==0) print*,'- READ DZS'
+ error=nf90_get_var(ncid, id_var, start=(/1,1/),count=(/nsoil_input,1/),values=dzs_target_grid)
+ call netcdf_err(error, 'reading DZS')
 
  if (localpet==0) print*,'- READ HGT'
  error=nf90_inq_varid(ncid, 'ter', id_var)

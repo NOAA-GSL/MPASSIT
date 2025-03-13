@@ -51,6 +51,7 @@ contains
                               sina_target_grid, &
                               cosa_target_grid, &
                               zs_target_grid, &
+                              dzs_target_grid, &
                               hgt_target_grid, &
                               u_target_grid, &
                               v_target_grid, &
@@ -101,7 +102,7 @@ contains
         integer                          :: header_buffer_val = 16384
         integer                          :: dim_time, dim_lon, dim_lat, dim_z, dim_zp1, dim_soil
         integer                          :: dim_lonp, dim_latp, dim_str, dim_lon_stag, dim_lat_stag
-        integer                          :: id_lat, id_lon, id_z, id_zs, id_times, id_xtime, id_itime
+        integer                          :: id_lat, id_lon, id_z, id_zs, id_dzs, id_times, id_xtime, id_itime
         integer                          :: id_latu, id_latv, id_lonu, id_lonv, id_ph, id_mu, id_hgt, id_ptop
         integer                          :: id_mfm, id_mfu, id_mfv, id_sina, id_cosa
         integer                          :: id_u, id_v
@@ -491,7 +492,7 @@ contains
             call netcdf_err(error, 'DEFINING ZS NAME')
             error = nf90_put_att(ncid, id_zs, "units", "m")
             call netcdf_err(error, 'DEFINING ZS UNITS')
-            error = nf90_put_att(ncid, id_zs, "MemoryOrder", "X")
+            error = nf90_put_att(ncid, id_zs, "MemoryOrder", "Z")
             call netcdf_err(error, 'DEFINING MEMORYORDER')
             error = nf90_put_att(ncid, id_zs, "coordinates", "ZS XTIME")
             call netcdf_err(error, 'DEFINING COORD')
@@ -500,6 +501,23 @@ contains
             error = nf90_put_att(ncid, id_zs, "FieldType", 104)
             call netcdf_err(error, 'DEFINING FieldType')
             error =  nf90_var_par_access(ncid, id_zs, NF90_COLLECTIVE)
+            call netcdf_err(error ,'SETTING COLLECTIVE ACCESS')
+
+            error = nf90_def_var(ncid, 'DZS', NF90_FLOAT, (/dim_soil, dim_time/), id_dzs)
+            call netcdf_err(error, 'DEFINING DZS FIELD')
+            error = nf90_put_att(ncid, id_dzs, "description", "SOIL LAYER THICKNESS")
+            call netcdf_err(error, 'DEFINING DZS NAME')
+            error = nf90_put_att(ncid, id_dzs, "units", "m")
+            call netcdf_err(error, 'DEFINING DZS UNITS')
+            error = nf90_put_att(ncid, id_dzs, "MemoryOrder", "Z")
+            call netcdf_err(error, 'DEFINING MEMORYORDER')
+            error = nf90_put_att(ncid, id_dzs, "coordinates", "ZS XTIME")
+            call netcdf_err(error, 'DEFINING COORD')
+            error = nf90_put_att(ncid, id_dzs, "stagger", "")
+            call netcdf_err(error, 'DEFINING STAGGER')
+            error = nf90_put_att(ncid, id_dzs, "FieldType", 104)
+            call netcdf_err(error, 'DEFINING FieldType')
+            error =  nf90_var_par_access(ncid, id_dzs, NF90_COLLECTIVE)
             call netcdf_err(error ,'SETTING COLLECTIVE ACCESS')
 
             error = nf90_def_var(ncid, 'HGT', NF90_FLOAT, (/dim_lon, dim_lat, dim_time/), id_hgt)
@@ -1199,6 +1217,10 @@ contains
         if (localpet == 0) print *, "- WRITE TO FILE TARGET GRID Z_S"
         error = nf90_put_var(ncid, id_zs, zs_target_grid, count=(/nsoil_input, 1/))
         call netcdf_err(error, 'WRITING ZS RECORD')
+
+        if (localpet == 0) print *, "- WRITE TO FILE TARGET GRID DZ_S"
+        error = nf90_put_var(ncid, id_dzs, dzs_target_grid, count=(/nsoil_input, 1/))
+        call netcdf_err(error, 'WRITING DZS RECORD')
 
 !  hgt
 
