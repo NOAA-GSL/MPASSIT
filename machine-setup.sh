@@ -110,6 +110,9 @@ elif [[ -d /data/prod ]] ; then
     fi
     target=s4
     module purge
+elif [[ -d /lfs/h2 ]] ; then
+   target=wcoss2
+   module purge
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
 fi
