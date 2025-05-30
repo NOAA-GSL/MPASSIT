@@ -40,6 +40,8 @@ if [[ "$target" == "wcoss2" ]]; then
     CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=CC -DCMAKE_Fortran_COMPILER=ftn"
 elif [[ "$compiler" == "intel" ]]; then
     CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort"
+elif [[ "$compiler" == "intel-llvm" ]]; then
+    CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DCMAKE_Fortran_COMPILER=ifx"
 elif [[ "$compiler" == "gnu" ]]; then
     CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran"
 fi
