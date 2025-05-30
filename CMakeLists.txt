@@ -17,10 +17,14 @@ option(OPENMP "use OpenMP threading" ON)
 option(ENABLE_DOCS "Enable generation of doxygen-based documentation." OFF)
 
 # Set compiler flags.
-if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)(LLVM)?$")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -g -traceback")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3 -fp-model precise")
-  set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check -check noarg_temp_created -check nopointer -fp-stack-check -fstack-protector-all -fpe0 -debug -ftrapuv")
+  if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check -check noarg_temp_created -check nopointer -fp-stack-check -fstack-protector-all -fpe0 -debug -ftrapuv")
+  else()
+    set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -check bounds -check contiguous -check format -check stack -check shape -check assume -fstack-protector-all -fpe0 -debug -ftrapuv")
+  endif()
   if(APPLE)
     # The linker on macOS does not include `common symbols` by default.
     # Passing the -c flag includes them and fixes an error with undefined symbols.
@@ -36,7 +40,7 @@ elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O0 -ggdb -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans -ffpe-trap=invalid,zero,overflow -fbounds-check -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls")
 endif()
 
-if(CMAKE_C_COMPILER_ID MATCHES "^(Intel)$")
+if(CMAKE_C_COMPILER_ID MATCHES "^(Intel)(LLVM)?$")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -traceback")
   set(CMAKE_C_FLAGS_RELEASE "-O2")
   set(CMAKE_C_FLAGS_DEBUG "-O0")
@@ -76,7 +80,7 @@ set(lib_src
 
 set(exe_src mpassit.F90)
 
-if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)$")
+if(CMAKE_Fortran_COMPILER_ID MATCHES "^(Intel)(LLVM)?$")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -r8 -assume byterecl")
 elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^(GNU)$")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-0 -fdefault-real-8")
