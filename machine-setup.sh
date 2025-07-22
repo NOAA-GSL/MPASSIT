@@ -16,8 +16,10 @@ else
     __ms_shell=sh
 fi
 
-target=""
+target="${MACHINE}"
 USERNAME=`echo $LOGNAME | awk '{ print tolower($0)'}`
+
+if [[ ${target} == "" ]] ; then
 
 if [[ -d /lfs5 || -d /lfs6 ]] ; then
     # We are on NOAA Jet
@@ -115,6 +117,10 @@ elif [[ -d /lfs/h2 ]] ; then
    module purge
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
+fi
+
+elif [[ ${target} == "ursa" ]] ; then
+   compiler=intel-llvm
 fi
 
 unset __ms_shell
