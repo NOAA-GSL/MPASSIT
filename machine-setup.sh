@@ -29,7 +29,7 @@ if [[ -d /lfs5 || -d /lfs6 ]] ; then
     fi
     target=jet
     module purge
-elif [[ -d /scratch1 ]] ; then
+elif [[ -d /scratch3 || -d /scratch4 ]] ; then
     # We are on NOAA Hera
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         echo load the module command 1>&2
