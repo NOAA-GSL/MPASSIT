@@ -4,7 +4,7 @@ module write_data
     use utils_mod
     use program_setup, only: output_file
     use datetime_module, only: datetime, timedelta, clock
-    use misc_definitions_module, only: PROJ_LC, PROJ_CASSINI
+    use misc_definitions_module, only: PROJ_LC, PROJ_LATLON, PROJ_CASSINI
     private
 
     public :: write_to_file
@@ -26,7 +26,7 @@ contains
         use program_setup, only: interp_diag, interp_hist, &
                                  wrf_mod_vars, truelat1, truelat2, &
                                  stand_lon, proj_code, map_proj_char, &
-                                 i_target, j_target, dxkm, &
+                                 i_target, j_target, dxkm, dlondeg, dlatdeg, &
                                  ref_lat, ref_lon, pole_lat, &
                                  pole_lon, missing_value
 
@@ -184,12 +184,6 @@ contains
             error = nf90_put_att(ncid, NF90_GLOBAL, 'START_DATE', start_time)
             call netcdf_err(error, 'DEFINING START DATE GLOBAL ATTRIBUTE')
 
-            error = nf90_put_att(ncid, NF90_GLOBAL, 'DX', dxkm)
-            call netcdf_err(error, 'DEFINING DX GLOBAL ATTRIBUTE')
-
-            error = nf90_put_att(ncid, NF90_GLOBAL, 'DY', dxkm)
-            call netcdf_err(error, 'DEFINING DY GLOBAL ATTRIBUTE')
-
             error = nf90_put_att(ncid, NF90_GLOBAL, 'DT', config_dt)
             call netcdf_err(error, 'DEFINING DT GLOBAL ATTRIBUTE')
 
@@ -234,6 +228,18 @@ contains
 
             error = nf90_put_att(ncid, NF90_GLOBAL, 'MAP_PROJ_CHAR', map_proj_char)
             call netcdf_err(error, 'DEFINING MAP_PROJ_CHAR GLOBAL ATTRIBUTE')
+
+            if (PROJ_CODE==PROJ_LATLON) then
+               error = nf90_put_att(ncid, NF90_GLOBAL, 'DX', dlondeg)
+               call netcdf_err(error, 'DEFINING DX GLOBAL ATTRIBUTE')
+               error = nf90_put_att(ncid, NF90_GLOBAL, 'DY', dlatdeg)
+               call netcdf_err(error, 'DEFINING DY GLOBAL ATTRIBUTE')
+            else
+               error = nf90_put_att(ncid, NF90_GLOBAL, 'DX', dxkm)
+               call netcdf_err(error, 'DEFINING DX GLOBAL ATTRIBUTE')
+               error = nf90_put_att(ncid, NF90_GLOBAL, 'DY', dxkm)
+               call netcdf_err(error, 'DEFINING DY GLOBAL ATTRIBUTE')
+            end if
 
             if (interp_diag) then
                 error = nf90_put_att(ncid, NF90_GLOBAL, 'PREC_ACC_DT', diag_out_interval)
