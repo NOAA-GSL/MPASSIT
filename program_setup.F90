@@ -26,7 +26,6 @@
  character(len=500), public      :: file_target_grid = "NULL"     !<Full path of file containing target 
                                                                   !<grid information for target_grid_type='file'
  character(len=500), public      :: output_file = "NULL"          !< Full path of output file
- 
  logical, public                 :: interp_diag = .false. !< Read data from diag file?
  logical, public                 :: interp_hist = .false. !< Read data from hist file?
  logical, public                 :: wrf_mod_vars = .false.!< Whether to modify variable values/dimensions 
