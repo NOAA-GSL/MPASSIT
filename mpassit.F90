@@ -40,7 +40,7 @@
 
  implicit none
 
- integer                      :: ierr, localpet, npets, unum, lenstr, istatus
+ integer                      :: ierr, localpet, npets, unum, lenstr, istatus, comm
  character(100)               :: tmpstr
  logical                      :: fexist
 
@@ -91,7 +91,7 @@
     call error_handler("IN VMGetGlobal", ierr)
 
  !if (localpet==0) print*,"- CALL VMGet"
- call ESMF_VMGet(vm, localPet=localpet, petCount=npets, rc=ierr)
+ call ESMF_VMGet(vm, localPet=localpet, petCount=npets, mpiCommunicator=comm, rc=ierr)
  if(ESMF_logFoundError(rcToCheck=ierr, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__,file=__FILE__)) &
     call error_handler("IN VMGet", ierr)
 
@@ -116,7 +116,7 @@
 ! Read data from input file
 !-------------------------------------------------------------------------
 
-call read_input_data(localpet)
+call read_input_data(localpet, npets, comm)
 
 !-------------------------------------------------------------------------
 ! Interpolate fields

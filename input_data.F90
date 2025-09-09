@@ -90,29 +90,130 @@
 
  contains
 
+!> Calculates mapping from NetCDF indices to ESMF indices.
+!!
+!! This calculates the mapping used in scatter_ncvar_3d and scatter_ncvar_2d.
+!! It maps from NetCDF file indices to ESMF indices to prepare for a FieldScatter
+!!
+!! @param[in] localpet  ESMF local persistent execution thread
+!! @param[in] npets     number of PETs
+!! @param[in] comm      MPI communicator for the PETs
+!! @param[out] mapping  The output mapping.
+!! @author Sam Trahan NOAA/GSL/CIRES
+ subroutine gather_global_cell_mapping(localpet, npets, comm, mapping)
+   use mpi
+   implicit none
+   integer, intent(in) :: localpet, npets
+   integer, intent(inout) :: mapping(nCells_input)
+   integer :: comm
+
+   integer :: mycount, counts(npets), ierr, displs(npets), i
+
+   mycount = size(elemIDs)
+   call MPI_Allgather(mycount, 1, MPI_INTEGER, counts, 1, MPI_INTEGER, comm, ierr)
+
+   displs(1) = 0
+   do i=2,npets
+      displs(i) = displs(i-1) + counts(i-1)
+   enddo
+
+   call MPI_Allgatherv(elemIDs, mycount, MPI_INTEGER, mapping, counts, displs, MPI_INTEGER, comm, ierr)
+ end subroutine gather_global_cell_mapping
+
+
+!> Reads a 3D variable on rank 0 and scatters (ESMF_FieldScatter) to all ranks.
+!!
+!! @param[in] field  The ESMF field to read and scatter.
+!! @param[in] localpet  ESMF local persistent execution thread
+!! @param[inout] read_buffer  A buffer for reading from the NetCDF. Must match the shape in the file.
+!! @param[inout] scatter_buffer  Input to ESMF_FieldScatter. Must match the shape of the ESMF variable for all PETs.
+!! @param[in] mapping  The mapping from gather_global_cell_mapping.
+!! @param[in] ncid  From NetCDF, the ncid of the file to read. Only significant on rank 0.
+!! @param[in] id_var  From NetCDF, the variable id of the variable to read. Only significant on rank 0.
+!! @param[in] nk  Extent of the vertical dimension.
+!! @author Sam Trahan NOAA/GSL/CIRES
+ subroutine scatter_ncvar_3d(field, localpet, read_buffer, scatter_buffer, mapping, ncid, id_var, nk)
+   implicit none
+   type(esmf_field) :: field
+   integer, intent(in) :: localpet, ncid, id_var, mapping(:), nk
+   real(esmf_kind_r8) :: read_buffer(:,:,:)
+   real(esmf_kind_r8) :: scatter_buffer(:,:)
+
+   integer :: j, k, error, rc
+
+   if (localpet==0) then
+      error=nf90_get_var(ncid, id_var, read_buffer)
+      call netcdf_err(error, 'reading field' )
+      do k=1,nk
+         do j=1,nCells_input
+            scatter_buffer(j,k) = read_buffer(k,mapping(j),1)
+         enddo
+      enddo
+   endif
+   call ESMF_FieldScatter(field, scatter_buffer, rootPet=0, rc=rc)
+   if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
+        call error_handler("IN FieldScatter 3D", rc)
+ end subroutine scatter_ncvar_3d
+
+!> Reads a 2D variable on rank 0 and scatters (ESMF_FieldScatter) to all ranks.
+!!
+!! @param[in] field  The ESMF field to read and scatter.
+!! @param[in] localpet  ESMF local persistent execution thread
+!! @param[inout] read_buffer  A buffer for reading from the NetCDF. Must match the shape in the file.
+!! @param[inout] scatter_buffer  Input to ESMF_FieldScatter. Must match the shape of the ESMF variable for all PETs.
+!! @param[in] mapping  The mapping from gather_global_cell_mapping.
+!! @param[in] ncid  From NetCDF, the ncid of the file to read. Only significant on rank 0.
+!! @param[in] id_var  From NetCDF, the variable id of the variable to read. Only significant on rank 0.
+!! @author Sam Trahan NOAA/GSL/CIRES
+ subroutine scatter_ncvar_2d(field, localpet, read_buffer, scatter_buffer, mapping, ncid, id_var)
+   implicit none
+   type(esmf_field) :: field
+   integer, intent(in) :: localpet, ncid, id_var, mapping(:)
+   real(esmf_kind_r8) :: read_buffer(:)
+   real(esmf_kind_r8) :: scatter_buffer(:)
+
+   integer :: j, error, rc
+
+   if (localpet==0) then
+      error=nf90_get_var(ncid, id_var, read_buffer)
+      call netcdf_err(error, 'reading field' )
+      do j=1,nCells_input
+         scatter_buffer(j) = read_buffer(mapping(j))
+      enddo
+   endif
+   call ESMF_FieldScatter(field, scatter_buffer, rootPet=0, rc=rc)
+   if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
+        call error_handler("IN FieldScatter 2D", rc)
+ end subroutine scatter_ncvar_2d
+
 !> Read input grid data driver.
 !!
 !! @param[in] localpet  ESMF local persistent execution thread
 !! @author Larissa Reames CIWRO/NOAA/NSSL
- subroutine read_input_data(localpet)
-
+ subroutine read_input_data(localpet, npets, comm)
+ use mpi
  implicit none
 
- include 'mpif.h'
+ integer, intent(in)             :: localpet, npets, comm
 
- integer, intent(in)             :: localpet
+ integer, allocatable, target :: mapping(:)
+
+ allocate(mapping(nCells_input))
+ call gather_global_cell_mapping(localpet, npets, comm, mapping)
 
  if (interp_diag) then
-    call read_input_diag_data(localpet)
+    call read_input_diag_data(localpet, npets, mapping)
  endif
 
  if (interp_hist) then
-    call read_input_hist_data(localpet)
+    call read_input_hist_data(localpet, npets, mapping)
  endif
 
  if (.not. interp_diag .and. .not. interp_hist) then
     call error_handler(" SET INTERP_DIAG AND/OR INTERP_HIST TO TRUE TO OBTAIN OUTPUT", -1)
  endif
+
+ deallocate(mapping)
 
  end subroutine read_input_data
 
@@ -120,19 +221,19 @@
 !!
 !! @param[in] localpet  ESMF local persistent execution thread
 !! @author Larissa Reames CIWRO/NOAA/NSSL
- subroutine read_input_diag_data(localpet)
+ subroutine read_input_diag_data(localpet, npets, mapping)
 
  character(len=500)              :: the_file
  character(len=50)               :: vname
 
- integer, intent(in)             :: localpet
+ integer, intent(in)             :: localpet, npets, mapping(:)
  integer                         :: error, ncid, rc
  integer                         :: id_dim
- integer                         :: id_var, i, j, nodes, ndims
+ integer                         :: id_var, i, j, k, nodes, ndims
 
- type(esmf_field),allocatable    :: fields(:)
+ type(esmf_field),allocatable, target    :: fields(:)
 
- real(esmf_kind_r8), allocatable :: dummy(:), dummy2(:,:,:)
+ real(esmf_kind_r8), allocatable, target :: dummy(:), scatter(:), dummy2(:,:,:), scatter2(:,:)
 
  real(esmf_kind_r8), pointer     :: varptr(:), varptr2(:,:)
 
@@ -162,8 +263,17 @@
  if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
      call error_handler("IN MeshGet", rc)
 
- allocate(dummy(nCells_input))
- allocate(dummy2(nz_input, nCells_input,1))
+ if(localpet == 0) then
+    allocate(dummy(nCells_input))
+    allocate(scatter(nCells_input))
+    allocate(dummy2(nz_input, nCells_input,1))
+    allocate(scatter2(nCells_input, nz_input))
+ else
+    allocate(dummy(1))
+    allocate(scatter(1))
+    allocate(dummy2(1,1,1))
+    allocate(scatter2(1,1))
+ endif
 
  do i = 1,n_diag_fields
     
@@ -184,30 +294,11 @@
     call netcdf_err(error, 'reading field id - '//trim(vname) )
     error=nf90_inquire_variable(ncid, id_var, ndims=ndims)
     call netcdf_err(error, 'reading variable dims' )
+    if (localpet==0) print*,"- READ INPUT FOR ", trim(vname)
     if (ndims == 2) then
-      call ESMF_FieldGet(fields(i), farrayPtr=varptr, rc=rc)
-      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
-         call error_handler("IN FieldGet", rc)
-      error=nf90_get_var(ncid, id_var, dummy)
-      call netcdf_err(error, 'reading field' )
-      if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-      do j = 1, nCellsPerPET
-          varptr(j) = dummy(elemIDs(j))
-      enddo
-      !if (localpet==0) print*, localpet, minval(varptr), maxval(varptr)
-      nullify(varptr)
+      call scatter_ncvar_2d(fields(i), localpet, dummy, scatter, mapping, ncid, id_var)
     elseif (ndims == 3) then
-      call ESMF_FieldGet(fields(i), farrayPtr=varptr2, rc=rc)
-      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
-        call error_handler("IN FieldGet", rc)
-      error=nf90_get_var(ncid, id_var, dummy2)
-      call netcdf_err(error, 'reading field' )
-      if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-      do j = 1, nCellsPerPET
-        varptr2(j,:) = dummy2(:,elemIDs(j),1)
-      enddo
-      !if (localpet==0) print*, localpet, minval(varptr2), maxval(varptr2)
-      nullify(varptr2)
+      call scatter_ncvar_3d(fields(i), localpet, dummy2, scatter2, mapping, ncid, id_var, nz_input)
     endif
     error=nf90_get_att(ncid,id_var,'units',target_diag_units(i))
     call netcdf_err(error, 'reading field units' )
@@ -245,12 +336,12 @@
    diag_out_interval = 0
  endif
 
- if (localpet==0) print*, "getting xtime"
+ if (localpet==0) print*, "- GETTING xtime"
  error = nf90_inq_dimid(ncid,'StrLen',id_var)
  call netcdf_err(error, 'reading strlen dim id')
  error = nf90_inquire_dimension(ncid,id_var,len=strlen)
  allocate(valid_time(1,strlen))
- if (localpet==0) print*, "strlen = ", strlen
+ if (localpet==0) print*, "... xtime strlen = ", strlen
  error = nf90_inq_varid(ncid,'xtime',id_var)
  call netcdf_err(error, 'reading xtime id')
  error = nf90_get_var(ncid, id_var, valid_time)
@@ -313,19 +404,19 @@
 !!
 !! @param[in] localpet  ESMF local persistent execution thread
 !! @author Larissa Reames CIWRO/NOAA/NSSL
- subroutine read_input_hist_data(localpet)
+ subroutine read_input_hist_data(localpet, npets, mapping)
 
  character(len=500)              :: the_file
  character(len=50)               :: vname, att_text
 
- integer, intent(in)             :: localpet
+ integer, intent(in)             :: localpet, npets, mapping(:)
  integer                         :: error, ncid, rc
  integer                         :: id_dim
  integer                         :: id_var, i, j, nodes
 
- type(esmf_field),allocatable    :: fields(:)
+ type(esmf_field),allocatable, target    :: fields(:)
 
- real(esmf_kind_r8), allocatable :: dummy2(:,:), dummy3(:,:,:)
+ real(esmf_kind_r8), allocatable, target :: dummy1(:), dummy2(:,:), dummy3(:,:,:), scatter1(:), scatter2(:,:)
 
  real(esmf_kind_r8), pointer     :: varptr(:), varptr2(:,:)
 
@@ -397,7 +488,7 @@
 
  error = nf90_inq_varid(ncid,vname,id_var)
  call netcdf_err(error, 'reading xtime id')
- if (localpet==0) print*, "getting xtime"
+ if (localpet==0) print*, "- GETTING xtime"
  error = nf90_get_var(ncid, id_var, valid_time)
  call netcdf_err(error, 'getting xtime')
 
@@ -407,7 +498,7 @@
 
  if (localpet==0) print*, "Begin reading variables"
  if (n_hist_fields_2d_patch > 0) then
-    if (localpet==0) print*, "read 2d hist"
+    if (localpet==0) print*, "Read 2d history variables"
     allocate(fields(n_hist_fields_2d_patch))
     allocate(target_hist_units_2d_patch(n_hist_fields_2d_patch))
     allocate(target_hist_longname_2d_patch(n_hist_fields_2d_patch))
@@ -421,14 +512,19 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy2(nCells_input,1))
+     if(localpet == 0) then
+        allocate(dummy1(nCells_input))
+        allocate(scatter1(nCells_input))
+     else
+        allocate(dummy1(1))
+        allocate(scatter1(1))
+     endif
 
      do i = 1,n_hist_fields_2d_patch
 
         call ESMF_FieldGet(fields(i), name=vname, rc=rc)
         if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN FieldGet", rc)
-        if (localpet==0) print*, vname
         call ESMF_FieldGet(fields(i), farrayPtr=varptr, rc=rc)
         if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN FieldGet", rc)
@@ -436,21 +532,18 @@
         if (localpet==0) print*,"- READ ", trim(vname)
         error=nf90_inq_varid(ncid, trim(vname), id_var)
         call netcdf_err(error, 'reading field id' )
-        error=nf90_get_var(ncid, id_var, dummy2)
-        call netcdf_err(error, 'reading field' )
+
+        call scatter_ncvar_2d(fields(i), localpet, dummy1, scatter1, mapping, ncid, id_var)
+
         error=nf90_get_att(ncid,id_var,'units',target_hist_units_2d_patch(i))
         call netcdf_err(error, 'reading field units' )
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_2d_patch(i))
         call netcdf_err(error, 'reading field long_name' )
 
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nCellsPerPET
-            varptr(j) = dummy2(elemIDs(j),1)
-        enddo
-
         nullify(varptr)
      enddo
-     deallocate(dummy2)
+     deallocate(dummy1)
+     deallocate(scatter1)
      deallocate(fields)
  endif
 
@@ -459,7 +552,7 @@
 !---------------------------------------------------------------------------
 
  if (n_hist_fields_2d_cons > 0) then
-    if (localpet==0) print*, "read 2d hist cons"
+    if (localpet==0) print*, "Read 2d history cons variables"
     allocate(fields(n_hist_fields_2d_cons))
     allocate(target_hist_units_2d_cons(n_hist_fields_2d_cons))
     allocate(target_hist_longname_2d_cons(n_hist_fields_2d_cons))
@@ -473,7 +566,13 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy2(nCells_input,1))
+     if(localpet == 0) then
+        allocate(dummy1(nCells_input))
+        allocate(scatter1(nCells_input))
+     else
+        allocate(dummy1(1))
+        allocate(scatter1(1))
+     endif
 
      do i = 1,n_hist_fields_2d_cons
 
@@ -488,21 +587,16 @@
         if (localpet==0) print*,"- READ ", trim(vname)
         error=nf90_inq_varid(ncid, trim(vname), id_var)
         call netcdf_err(error, 'reading field id' )
-        error=nf90_get_var(ncid, id_var, dummy2)
-        call netcdf_err(error, 'reading field' )
+
+        call scatter_ncvar_2d(fields(i), localpet, dummy1, scatter1, mapping, ncid, id_var)
+
         error=nf90_get_att(ncid,id_var,'units',target_hist_units_2d_cons(i))
         call netcdf_err(error, 'reading field units' )
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_2d_cons(i))
         call netcdf_err(error, 'reading field long_name' )
-
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nCellsPerPET
-            varptr(j) = dummy2(elemIDs(j),1)
-        enddo
-
-        nullify(varptr)
      enddo
-     deallocate(dummy2)
+     deallocate(dummy1)
+     deallocate(scatter1)
      deallocate(fields)
  endif
 
@@ -511,6 +605,7 @@
 !---------------------------------------------------------------------------------
 
  if (n_hist_fields_2d_nstd > 0) then
+    if (localpet==0) print*, "Read 2d history nstd variables"
     allocate(fields(n_hist_fields_2d_nstd))
     allocate(target_hist_units_2d_nstd(n_hist_fields_2d_nstd))
     allocate(target_hist_longname_2d_nstd(n_hist_fields_2d_nstd))
@@ -524,7 +619,13 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy2(nCells_input,1))
+     if(localpet == 0) then
+        allocate(dummy1(nCells_input))
+        allocate(scatter1(nCells_input))
+     else
+        allocate(dummy1(1))
+        allocate(scatter1(1))
+     endif
 
      do i = 1,n_hist_fields_2d_nstd
 
@@ -539,21 +640,16 @@
         if (localpet==0) print*,"- READ ", trim(vname)
         error=nf90_inq_varid(ncid, trim(vname), id_var)
         call netcdf_err(error, 'reading field id' )
-        error=nf90_get_var(ncid, id_var, dummy2)
-        call netcdf_err(error, 'reading field' )
+
+        call scatter_ncvar_2d(fields(i), localpet, dummy1, scatter1, mapping, ncid, id_var)
+
         error=nf90_get_att(ncid,id_var,'units',target_hist_units_2d_nstd(i))
         call netcdf_err(error, 'reading field units' )
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_2d_nstd(i))
         call netcdf_err(error, 'reading field long_name' )
-
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nCellsPerPET
-            varptr(j) = dummy2(elemIDs(j),1)
-        enddo
-
-        nullify(varptr)
      enddo
-     deallocate(dummy2)
+     deallocate(dummy1)
+     deallocate(scatter1)
      deallocate(fields)
  endif
 
@@ -562,6 +658,7 @@
 !---------------------------------------------------------------------------
 
  if (n_hist_fields_soil > 0) then
+    if (localpet==0) print*, "Read 3d history soil variables"
     allocate(fields(n_hist_fields_soil))
     allocate(target_hist_units_soil(n_hist_fields_soil))
     allocate(target_hist_longname_soil(n_hist_fields_soil))
@@ -575,7 +672,13 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy3(nsoil_input,nCells_input,1))
+     if(localpet == 0) then
+        allocate(dummy3(nsoil_input,nCells_input,1))
+        allocate(scatter2(nCells_input,nsoil_input))
+     else
+        allocate(dummy3(1,1,1))
+        allocate(scatter2(1,1))
+     endif
 
      do i = 1,n_hist_fields_soil
 
@@ -590,21 +693,16 @@
         if (localpet==0) print*,"- READ ", trim(vname)
         error=nf90_inq_varid(ncid, trim(vname), id_var)
         call netcdf_err(error, 'reading field id' )
-        error=nf90_get_var(ncid, id_var, dummy3)
-        call netcdf_err(error, 'reading field' )
+
+        call scatter_ncvar_3d(fields(i), localpet, dummy3, scatter2, mapping, ncid, id_var, nsoil_input)
+
         error=nf90_get_att(ncid,id_var,'units',target_hist_units_soil(i))
         call netcdf_err(error, 'reading field units' )
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_soil(i))
         call netcdf_err(error, 'reading field long_name' )
-
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nCellsPerPET
-            varptr2(j,:) = dummy3(:,elemIDs(j),1)
-        enddo
-
-        nullify(varptr2)
      enddo
      deallocate(dummy3)
+     deallocate(scatter2)
      deallocate(fields)
  endif
 
@@ -614,6 +712,7 @@
 !---------------------------------------------------------------------------
 
  if (n_hist_fields_3d_nz > 0 ) then
+    if (localpet==0) print*, "Read 3d history atmosphere nz variables"
      allocate(fields(n_hist_fields_3d_nz))
      allocate(target_hist_units_3d_nz(n_hist_fields_3d_nz))
     allocate(target_hist_longname_3d_nz(n_hist_fields_3d_nz))
@@ -627,7 +726,13 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy3(nz_input,nCells_input,1))
+     if(localpet == 0) then
+        allocate(dummy3(nz_input,nCells_input,1))
+        allocate(scatter2(nCells_input,nz_input))
+     else
+        allocate(dummy3(1,1,1))
+        allocate(scatter2(1,1))
+     endif
 
      do i = 1,n_hist_fields_3d_nz
 
@@ -642,21 +747,16 @@
         if (localpet==0) print*,"- READ ", trim(vname)
         error=nf90_inq_varid(ncid, trim(vname), id_var)
         call netcdf_err(error, 'reading field id' )
-        error=nf90_get_var(ncid, id_var, dummy3)
-        call netcdf_err(error, 'reading field' )
+
+        call scatter_ncvar_3d(fields(i), localpet, dummy3, scatter2, mapping, ncid, id_var, nz_input)
+
         error=nf90_get_att(ncid,id_var,'units',target_hist_units_3d_nz(i))
         call netcdf_err(error, 'reading field units' )
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_3d_nz(i))
         call netcdf_err(error, 'reading field long_name' )
-
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nCellsPerPET
-            varptr2(j,:) = dummy3(:,elemIDs(j),1)
-        enddo
-
-        nullify(varptr2)
      enddo
      deallocate(dummy3)
+     deallocate(scatter2)
      deallocate(fields)
  endif
 
@@ -664,41 +764,43 @@
 ! Initialize 3d esmf atmospheric fields U and V if requested
 !---------------------------------------------------------------------------
  if (do_u_interp==1) then
-    allocate(dummy3(nz_input,nCells_input,1))
+    if(localpet == 0) then
+       allocate(dummy3(nz_input,nCells_input,1))
+       allocate(scatter2(nCells_input,nz_input))
+    else
+       allocate(dummy3(1,1,1))
+       allocate(scatter2(1,1))
+    endif
+
     call ESMF_fieldGet(u_input_grid, farrayPtr=varptr2,rc=rc)
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN FieldGet", rc)
     if (localpet==0) print*, "- READ uReconstructZonal "
     error=nf90_inq_varid(ncid, "uReconstructZonal", id_var)
     call netcdf_err(error, 'reading field id' )
-    error=nf90_get_var(ncid, id_var, dummy3)
-    call netcdf_err(error, 'reading field' )
 
-    if (localpet==0) print*,"- SET ON MESH uReconstructZonal"
-    do j = 1, nCellsPerPET
-          varptr2(j,:) = dummy3(:,elemIDs(j),1)
-    enddo
-    nullify(varptr2)
+    call scatter_ncvar_3d(u_input_grid, localpet, dummy3, scatter2, mapping, ncid, id_var, nz_input)
     deallocate(dummy3)
+    deallocate(scatter2)
  endif
 
   if (do_v_interp==1) then
-    allocate(dummy3(nz_input,nCells_input,1))
-    call ESMF_fieldGet(v_input_grid, farrayPtr=varptr2,rc=rc)
+     if(localpet == 0) then
+        allocate(dummy3(nz_input,nCells_input,1))
+        allocate(scatter2(nCells_input,nz_input))
+     else
+        allocate(dummy3(1,1,1))
+        allocate(scatter2(1,1))
+     endif
+
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN FieldGet", rc)
     if (localpet==0) print*, "- READ uReconstructMeridional "
     error=nf90_inq_varid(ncid, "uReconstructMeridional", id_var)
     call netcdf_err(error, 'reading field id' )
-    error=nf90_get_var(ncid, id_var, dummy3)
-    call netcdf_err(error, 'reading field' )
-
-    if (localpet==0) print*,"- SET ON MESH uReconstructMeridional"
-    do j = 1, nCellsPerPET
-       varptr2(j,:) = dummy3(:,elemIDs(j),1)
-    enddo
-    nullify(varptr2)
+    call scatter_ncvar_3d(v_input_grid, localpet, dummy3, scatter2, mapping, ncid, id_var, nz_input)
     deallocate(dummy3)
+    deallocate(scatter2)
  endif
 
 !-------------------------------------------------------------------------------
@@ -706,6 +808,7 @@
 !-------------------------------------------------------------------------------
 
  if (n_hist_fields_3d_nzp1 > 0 ) then
+    if (localpet==0) print*, "Read 3d history atmosphere nz+1 variables"
      allocate(fields(n_hist_fields_3d_nzp1))
      allocate(target_hist_units_3d_nzp1(n_hist_fields_3d_nzp1))
      allocate(target_hist_longname_3d_nzp1(n_hist_fields_3d_nzp1))
@@ -719,7 +822,13 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__)) &
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy3(nzp1_input,nCells_input,1))
+     if(localpet == 0) then
+        allocate(dummy3(nzp1_input,nCells_input,1))
+        allocate(scatter2(nCells_input,nzp1_input))
+     else
+        allocate(dummy3(1,1,1))
+        allocate(scatter2(1,1))
+     endif
 
      do i = 1,n_hist_fields_3d_nzp1
 
@@ -736,20 +845,14 @@
         call netcdf_err(error, 'reading field id' )
         error=nf90_get_var(ncid, id_var, dummy3)
         call netcdf_err(error, 'reading field' )
-        error=nf90_get_att(ncid,id_var,'units',target_hist_units_3d_nzp1(i))
-        call netcdf_err(error, 'reading field units' )
+
+        call scatter_ncvar_3d(fields(i),localpet, dummy3, scatter2, mapping, ncid, id_var, nzp1_input)
+
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_3d_nzp1(i))
         call netcdf_err(error, 'reading field long_name' )
-
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nCellsPerPET
-            varptr2(j,:) = dummy3(:,elemIDs(j),1)
-        enddo
-
-        !if (localpet==0) print*, vname, minval(varptr2), maxval(varptr2)
-        nullify(varptr2)
      enddo
      deallocate(dummy3)
+     deallocate(scatter2)
      deallocate(fields)
  endif
 
@@ -759,6 +862,7 @@
 !---------------------------------------------------------------------------
 
  if (n_hist_fields_3d_vert > 0 ) then
+    if (localpet==0) print*, "Read 3d history unstructured mesh variables"
      allocate(fields(n_hist_fields_3d_vert))
      allocate(target_hist_units_3d_vert(n_hist_fields_3d_vert))
     allocate(target_hist_longname_3d_vert(n_hist_fields_3d_vert))
@@ -772,13 +876,15 @@
      if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
          call error_handler("IN MeshGet", rc)
 
-     allocate(dummy3(nz_input,nVert_input,1))
+     if(localpet == 0) then
+        allocate(dummy3(nz_input,nVert_input,1))
+        allocate(scatter2(nVert_input,nz_input))
+     else
+        allocate(dummy3(1,1,1))
+        allocate(scatter2(1,1))
+     endif
 
      do i = 1,n_hist_fields_3d_vert
-
-        call ESMF_FieldGet(fields(i), name=vname, rc=rc)
-        if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
-         call error_handler("IN FieldGet", rc)
 
         call ESMF_FieldGet(fields(i), farrayPtr=varptr2, rc=rc)
         if(ESMF_logFoundError(rcToCheck=rc,msg=ESMF_LOGERR_PASSTHRU,line=__LINE__,file=__FILE__))&
@@ -787,21 +893,16 @@
         if (localpet==0) print*,"- READ ", trim(vname)
         error=nf90_inq_varid(ncid, trim(vname), id_var)
         call netcdf_err(error, 'reading field id' )
-        error=nf90_get_var(ncid, id_var, dummy3)
-        call netcdf_err(error, 'reading field' )
+
+        call scatter_ncvar_3d(fields(i), localpet, dummy3, scatter2, mapping, ncid, id_var, nz_input)
+
         error=nf90_get_att(ncid,id_var,'units',target_hist_units_3d_vert(i))
         call netcdf_err(error, 'reading field units' )
         error=nf90_get_att(ncid,id_var,'long_name',target_hist_longname_3d_vert(i))
         call netcdf_err(error, 'reading field long_name' )
-
-        if (localpet==0) print*,"- SET ON MESH ", trim(vname)
-        do j = 1, nNodesPerPET
-            varptr2(j,:) = dummy3(:,nodeIDs(j),1)
-        enddo
-
-        nullify(varptr2)
      enddo
      deallocate(dummy3)
+     deallocate(scatter2)
      deallocate(fields)
  endif
 
