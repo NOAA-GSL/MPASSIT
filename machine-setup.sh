@@ -90,8 +90,8 @@ elif [[ -d /glade ]] ; then
     fi
     target=cheyenne
     module purge
-elif [[ -d /ncrc ]] ; then
-    target=gaea
+elif [[ -d /gpfs/f6 ]] ; then
+    target=gaeac6
 elif [[ "$(hostname)" =~ "orion" ]]; then
     target="orion"
     module purge
