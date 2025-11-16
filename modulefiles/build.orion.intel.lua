@@ -2,23 +2,14 @@ help([[
 This module loads libraries for MPASSIT
 ]])
 
-whatis([===[Loads libraries for rrfs-workflow ]===])
-prepend_path("MODULEPATH", "/work/noaa/epic/role-epic/spack-stack/orion/spack-stack-1.6.0/envs/unified-env-rocky9/install/modulefiles/Core")
+whatis([===[Loads libraries for MPASSIT ]===])
+prepend_path("MODULEPATH", "/apps/contrib/spack-stack/spack-stack-1.9.3/envs/ue-oneapi-2024.2.1/install/modulefiles/Core")
 
-load("stack-intel/2021.9.0")
-load("stack-intel-oneapi-mpi/2021.9.0")
-load("cmake/3.23.1")
-load("parallel-netcdf/1.12.2")
-load("libszip/2.1.1")
-load("hdf5/1.14.0")
-load("netcdf-c/4.9.2")
-load("netcdf-cxx/4.2")
-load("netcdf-fortran/4.6.1")
-load("jasper/2.0.32")
-load("libpng/1.6.37")
-load("esmf/8.6.0")
+load("stack-oneapi/2024.2.1")
+load("stack-intel-oneapi-mpi/2021.13")
 
-setenv("PIO", os.getenv("parallelio_ROOT"))
+load("cmake/3.27.9")
+load("esmf/8.8.0")
 
 setenv("CMAKE_C_COMPILER", "mpiicc")
 setenv("CMAKE_CXX_COMPILER", "mpiicpc")
