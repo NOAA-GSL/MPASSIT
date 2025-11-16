@@ -16,10 +16,7 @@ else
     __ms_shell=sh
 fi
 
-target="${MACHINE}"
-USERNAME=`echo $LOGNAME | awk '{ print tolower($0)'}`
-
-if [[ ${target} == "" ]] ; then
+target=${target:-""}
 
 if [[ -d /lfs5 || -d /lfs6 ]] ; then
     # We are on NOAA Jet
@@ -30,12 +27,16 @@ if [[ -d /lfs5 || -d /lfs6 ]] ; then
     target=jet
     module purge
 elif [[ -d /scratch3 || -d /scratch4 ]] ; then
-    # We are on NOAA Hera
+    # We are on NOAA Hera or Ursa
     if ( ! eval module help > /dev/null 2>&1 ) ; then
         echo load the module command 1>&2
         source /apps/lmod/lmod/init/$__ms_shell
     fi
-    target=hera
+    if [[ -d /apps/slurm_hera ]]; then
+      target=hera
+    else
+      target=ursa
+    fi
     module purge
 elif [[ -d /gpfs/hps && -e /etc/SuSE-release ]] ; then
     # We are on NOAA Luna or Surge
@@ -117,10 +118,6 @@ elif [[ -d /lfs/h2 ]] ; then
    module purge
 else
     echo WARNING: UNKNOWN PLATFORM 1>&2
-fi
-
-elif [[ ${target} == "ursa" ]] ; then
-   compiler=intel-llvm
 fi
 
 unset __ms_shell
