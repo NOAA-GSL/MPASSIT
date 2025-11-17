@@ -4,16 +4,21 @@
 
 #set -eux
 
-target=${1:-"NULL"}
+target=${1:-""}
 compiler=${2:-"intel"}
 debug=${3:-"true"}
 
 # If target is not set
-if [[ "$target" == "NULL" ]]; then
+if [[ "$target" == "" ]]; then
     source ./machine-setup.sh
 fi
 
 echo "target=$target, compiler=$compiler"
+
+if [[ "$target" == "" ]]; then
+  echo "target is not set and the platform name cannot be detected automatically"
+  exit 1
+fi
 
 # Check for platform/compiler configuration file
 if [[ ! -f modulefiles/build.$target && ! -f modulefiles/build.$target.$compiler.lua && ! -f modulefiles/build.$target.$compiler ]]; then
@@ -21,7 +26,7 @@ if [[ ! -f modulefiles/build.$target && ! -f modulefiles/build.$target.$compiler
     exit 1
 fi
 
-if [[ "$target" == "vecna" || "$compiler" == "gnu" ]]; then
+if [[ "$target" == "vecna" ]]; then
     echo "Use platform configuration file: build.$target.$compiler"
     source ./modulefiles/build.$target.$compiler > /dev/null
 elif [[ "$target" == "linux.*" || "$target" == "macosx.*" ]]; then
@@ -38,12 +43,8 @@ fi
 CMAKE_FLAGS="-DCMAKE_INSTALL_PREFIX=../ -DEMC_EXEC_DIR=ON -DBUILD_TESTING=OFF"
 if [[ "$target" == "wcoss2" ]]; then
     CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=cc -DCMAKE_CXX_COMPILER=CC -DCMAKE_Fortran_COMPILER=ftn"
-elif [[ "$compiler" == "intel" ]]; then
-    CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=icc -DCMAKE_CXX_COMPILER=icpc -DCMAKE_Fortran_COMPILER=ifort"
 elif [[ "$compiler" == "intel-llvm" ]]; then
     CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx -DCMAKE_Fortran_COMPILER=ifx"
-elif [[ "$compiler" == "gnu" ]]; then
-    CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ -DCMAKE_Fortran_COMPILER=gfortran"
 fi
 
 if [[ "${debug}" == "true" ]]; then
