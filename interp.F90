@@ -199,7 +199,7 @@
            else
               ndims = nd
            endif
-           if(localpet==0) print*, k, ndims
+!           if(localpet==0) print*, k, ndims
            if (ndims==2) fptr2(k)%p(i,j) = missing_value
            if (ndims==3) fptr3(k)%p(i,j,:) = missing_value 
         enddo
