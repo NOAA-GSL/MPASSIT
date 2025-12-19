@@ -1113,7 +1113,7 @@ contains
         count1u = cubu(1)-clbu(1)+1
         count2u = cubu(2)-clbu(2)+1
         allocate(dum2du(count1u,count2u))    
-        dum2du = dum2dptr(clb(1):cub(1),clb(2):cub(2))
+        dum2du = dum2dptr(clbu(1):cubu(1),clbu(2):cubu(2))
         error = nf90_put_var(ncid, id_lonu, dum2du, start = (/clbu(1),clbu(2),1/),  &
                                    count=(/count1u, count2u, 1/))
         call netcdf_err(error, 'WRITING XLONG_U RECORD')
@@ -1142,7 +1142,7 @@ contains
         allocate(dum2dv(count1v,count2v))
     
         dum2dv = dum2dptr(clbv(1):cubv(1),clbv(2):cubv(2))
-        error = nf90_put_var(ncid, id_latv, dum2dv, start = (/clb(1),clb(2),1/),  &
+        error = nf90_put_var(ncid, id_latv, dum2dv, start = (/clbv(1),clbv(2),1/),  &
                                    count=(/count1v, count2v, 1/))
         call netcdf_err(error, 'WRITING XLAT_U RECORD')
 
@@ -1154,7 +1154,7 @@ contains
             
 
         dum2dv = dum2dptr(clbv(1):cubv(1),clbv(2):cubv(2))
-        error = nf90_put_var(ncid, id_lonv, dum2dv, start = (/clb(1),clb(2),1/),  &
+        error = nf90_put_var(ncid, id_lonv, dum2dv, start = (/clbv(1),clbv(2),1/),  &
                                    count=(/count1v, count2v, 1/))
         call netcdf_err(error, 'WRITING XLAT_U RECORD')
 
@@ -1191,7 +1191,7 @@ contains
             
 
         dum2dv = dum2dptr(clbv(1):cubv(1),clbv(2):cubv(2))
-        error = nf90_put_var(ncid, id_mfv, dum2du, start = (/clb(1),clb(2),1/),  &
+        error = nf90_put_var(ncid, id_mfv, dum2dv, start = (/clbv(1),clbv(2),1/),  &
                                    count=(/count1v, count2v, 1/))
         call netcdf_err(error, 'WRITING MAPFAC_V RECORD')
 
