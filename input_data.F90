@@ -25,7 +25,7 @@
  use model_grid, only             : input_grid,        &
                                     nCells_input, nVert_input,  &
                                     nz_input, nzp1_input, &
-                                    nsoil_input, strlen, &
+                                    strlen, &
                                     valid_time, config_dt, &
                                     start_time, lsm_scheme, &
                                     mp_scheme, conv_scheme, &
@@ -86,6 +86,14 @@
  implicit none
 
  private
+
+ integer, public                        :: nsoil_input
+                                           !< number of input soil levels
+ real(esmf_kind_r8), allocatable , public :: zs_target_grid(:,:)
+                                          !< soil center depth, target grid
+ real(esmf_kind_r8), allocatable , public :: dzs_target_grid(:,:)
+                                          !< soil layer thickness, target grid
+
  public :: read_input_data
 
  contains
@@ -491,6 +499,35 @@
  if (localpet==0) print*, "- GETTING xtime"
  error = nf90_get_var(ncid, id_var, valid_time)
  call netcdf_err(error, 'getting xtime')
+
+ !Get nSoilLevels size
+ if (localpet==0) print*,'- READ nSoilLevels'
+ error = nf90_inq_dimid(ncid,'nSoilLevels',id_dim)
+ call netcdf_err(error, 'reading nSoilLevels id')
+
+ error=nf90_inquire_dimension(ncid,id_dim,len=nsoil_input)
+ call netcdf_err(error, 'reading nSoilLevels')
+
+ allocate(zs_target_grid(nsoil_input,1))
+ allocate(dzs_target_grid(nsoil_input,1))
+
+ ! SOIL CENTER DEPTHS
+ if (localpet==0) print*,'- READ ZS ID'
+ error=nf90_inq_varid(ncid, 'zs', id_var)
+ call netcdf_err(error, 'reading zs id')
+
+ if (localpet==0) print*,'- READ ZS'
+ error=nf90_get_var(ncid, id_var, start=(/1,1/),count=(/nsoil_input,1/),values=zs_target_grid)
+ call netcdf_err(error, 'reading ZS')
+
+ ! SOIL LAYER THICKNESSES
+ if (localpet==0) print*,'- READ DZS ID'
+ error=nf90_inq_varid(ncid, 'dzs', id_var)
+ call netcdf_err(error, 'reading dzs id')
+
+ if (localpet==0) print*,'- READ DZS'
+ error=nf90_get_var(ncid, id_var, start=(/1,1/),count=(/nsoil_input,1/),values=dzs_target_grid)
+ call netcdf_err(error, 'reading DZS')
 
 !---------------------------------------------------------------------------
 ! Initialize 2d esmf atmospheric fields for bilinear/patch interpolation

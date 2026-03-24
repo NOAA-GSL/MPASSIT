@@ -23,10 +23,11 @@
                                     proj_code, stand_lon, &
                                     missing_value
 
+ use input_data, only             : nsoil_input
+
  use model_grid, only             : input_grid, target_grid, &
                                     nCells_input, nVert_input,  &
                                     nz_input, nzp1_input, &
-                                    nsoil_input, &
                                     cell_latitude_input_grid, &
                                     cell_longitude_input_grid, &
                                     zgrid_input_grid, &

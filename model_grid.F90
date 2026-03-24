@@ -27,8 +27,6 @@
                                            !< number of input grid atm layers
  integer, public                        :: nzp1_input
                                            !< number of input grid atm layer interfaces
- integer, public                        :: nsoil_input
-                                           !< number of input soil levels
  !real, public                           :: dx
  !                                          !< grid size (m) of target grid
  character(50), public                  :: start_time
@@ -116,10 +114,6 @@
  type(esmf_field),  public              :: longitude_v_target_grid
                                            !< longitude of grid v stagger, target
                                            !grid
- real(esmf_kind_r8), allocatable , public :: zs_target_grid(:,:)
-                                          !< soil center depth, target grid
- real(esmf_kind_r8), allocatable , public :: dzs_target_grid(:,:)
-                                          !< soil layer thickness, target grid
  type(esmf_field), public               :: hgt_input_grid, hgt_target_grid
                                           !< surface elevation, target grid
  type(esmf_field), public               :: mapfac_m_target_grid
@@ -331,14 +325,6 @@
 
  error=nf90_inquire_dimension(ncid,id_dim,len=maxEdges)
  call netcdf_err(error, 'reading maxEdges')
-
- !Get nSoilLevels size
-  if (localpet==0) print*,'- READ nSoilLevels'
- error = nf90_inq_dimid(ncid,'nSoilLevels',id_dim)
- call netcdf_err(error, 'reading nSoilLevels id')
-
- error=nf90_inquire_dimension(ncid,id_dim,len=nsoil_input)
- call netcdf_err(error, 'reading nSoilLevels')
  
  allocate(latCell(nCells))
  allocate(lonCell(nCells))
@@ -349,8 +335,6 @@
 
  
  allocate(vertOnCell(maxEdges,nCells))
- allocate(zs_target_grid(nsoil_input,1))
- allocate(dzs_target_grid(nsoil_input,1))
 
  ! GET CELL CENTER LAT/LON
  if (localpet==0) print*,'- READ LONCELL ID'
@@ -385,24 +369,6 @@
  if (localpet==0) print*,'- READ LATVERTEX'
  error=nf90_get_var(ncid, id_var,  start=(/1/),count=(/nVertices/),values=latVert)
  call netcdf_err(error, 'reading latVertex')
-
-  ! SOIL CENTER DEPTHS
- if (localpet==0) print*,'- READ ZS ID'
- error=nf90_inq_varid(ncid, 'zs', id_var)
- call netcdf_err(error, 'reading zs id')
-
- if (localpet==0) print*,'- READ ZS'
- error=nf90_get_var(ncid, id_var, start=(/1,1/),count=(/nsoil_input,1/),values=zs_target_grid)
- call netcdf_err(error, 'reading ZS')
-
-  ! SOIL LAYER THICKNESSES
- if (localpet==0) print*,'- READ DZS ID'
- error=nf90_inq_varid(ncid, 'dzs', id_var)
- call netcdf_err(error, 'reading dzs id')
-
- if (localpet==0) print*,'- READ DZS'
- error=nf90_get_var(ncid, id_var, start=(/1,1/),count=(/nsoil_input,1/),values=dzs_target_grid)
- call netcdf_err(error, 'reading DZS')
 
  if (localpet==0) print*,'- READ HGT'
  error=nf90_inq_varid(ncid, 'ter', id_var)
