@@ -30,10 +30,13 @@ contains
                                  ref_lat, ref_lon, pole_lat, &
                                  pole_lon, missing_value
 
+        use input_data, only: nsoil_input, &
+                              zs_target_grid, &
+                              dzs_target_grid
+
         use model_grid, only: target_grid, &
                               ip1_target, jp1_target, &
                               nz_input, nzp1_input, &
-                              nsoil_input, &
                               start_time, &
                               config_dt, &
                               strlen, valid_time, &
@@ -50,8 +53,6 @@ contains
                               mapfac_v_target_grid, &
                               sina_target_grid, &
                               cosa_target_grid, &
-                              zs_target_grid, &
-                              dzs_target_grid, &
                               hgt_target_grid, &
                               u_target_grid, &
                               v_target_grid, &
