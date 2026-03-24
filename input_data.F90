@@ -429,14 +429,24 @@
  real(esmf_kind_r8), pointer     :: varptr(:), varptr2(:,:)
 
 
- call init_input_hist_fields(localpet)
-
- if (localpet==0) print*,"- READ INPUT HIST DATA."
-
-
  the_file = trim(hist_file_input_grid)
  error=nf90_open(trim(the_file),nf90_nowrite,ncid)
  call netcdf_err(error, 'opening: '//trim(the_file) )
+
+ !nSoilLevels must be read before init_input_hist_fields
+ if (localpet==0) print*,'- READ nSoilLevels'
+ error = nf90_inq_dimid(ncid,'nSoilLevels',id_dim)
+ call netcdf_err(error, 'reading nSoilLevels id')
+
+ error=nf90_inquire_dimension(ncid,id_dim,len=nsoil_input)
+ call netcdf_err(error, 'reading nSoilLevels')
+
+ allocate(zs_target_grid(nsoil_input,1))
+ allocate(dzs_target_grid(nsoil_input,1))
+
+ call init_input_hist_fields(localpet)
+
+ if (localpet==0) print*,"- READ INPUT HIST DATA."
 
 !---------------------------------------------------------------------------
 ! Read global attributes for use when creating output file
@@ -499,17 +509,6 @@
  if (localpet==0) print*, "- GETTING xtime"
  error = nf90_get_var(ncid, id_var, valid_time)
  call netcdf_err(error, 'getting xtime')
-
- !Get nSoilLevels size
- if (localpet==0) print*,'- READ nSoilLevels'
- error = nf90_inq_dimid(ncid,'nSoilLevels',id_dim)
- call netcdf_err(error, 'reading nSoilLevels id')
-
- error=nf90_inquire_dimension(ncid,id_dim,len=nsoil_input)
- call netcdf_err(error, 'reading nSoilLevels')
-
- allocate(zs_target_grid(nsoil_input,1))
- allocate(dzs_target_grid(nsoil_input,1))
 
  ! SOIL CENTER DEPTHS
  if (localpet==0) print*,'- READ ZS ID'
