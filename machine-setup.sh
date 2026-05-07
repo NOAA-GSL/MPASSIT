@@ -17,6 +17,10 @@ else
 fi
 
 target=${target:-""}
+if [[ "${MACHINE:-''}" == "hostgeneric" ]]; then
+    target="hostgeneric"
+    return 0
+fi
 
 if [[ -d /lfs5 || -d /lfs6 ]] ; then
     # We are on NOAA Jet

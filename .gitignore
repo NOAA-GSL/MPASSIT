@@ -34,3 +34,4 @@
 #
 /bin
 /build
+modulefiles/build.hostgeneric.intel.lua
