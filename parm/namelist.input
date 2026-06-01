@@ -1,6 +1,6 @@
-grid_file_input_grid-"/lfs4/NAGAPE/hpc-wof1/reames/MPASSIT/run/mpas.init.nc_0325"
+grid_file_input_grid="/lfs4/NAGAPE/hpc-wof1/reames/MPASSIT/run/mpas.init.nc_0325"
 hist_file_input_grid="/lfs4/NAGAPE/hpc-wof1/reames/MPASSIT/run/mpas.history.2024-03-25_09.00.00.nc"
-diag_file_input_grid-"/lfs4/NAGAPE/hpc-wof1/reames/MPASSIT/run/mpas.diag.2024-03-25_09.00.00.nc"
+diag_file_input_grid="/lfs4/NAGAPE/hpc-wof1/reames/MPASSIT/run/mpas.diag.2024-03-25_09.00.00.nc"
 block_decomp_file="/lfs4/NAGAPE/hpc-wof1/reames/MPASSIT/run/mpas.graph.info.part.120"
 output_file="/1fs4/NAGAPE/hpc-wof1/lreames/mpassit_out.nc"
 interp_diag=.true.
