@@ -10,7 +10,8 @@ debug=${3:-"true"}
 
 # If target is not set
 if [[ "$target" == "" ]]; then
-    source ./machine-setup.sh
+    source ./detect_machine.sh
+    target=${MACHINE}
 fi
 
 echo "target=$target, compiler=$compiler"
