@@ -59,9 +59,6 @@ rm -fr ./build
 mkdir ./build && cd ./build || exit 0
 
 # do the building
-if command -v llvm-ar >/dev/null 2>&1; then
-    CMAKE_FLAGS="${CMAKE_FLAGS} -DCMAKE_AR=$(command -v llvm-ar) -DCMAKE_RANLIB=$(command -v llvm-ranlib)"
-fi
 cmake .. ${CMAKE_FLAGS}
 
 make -j 8 VERBOSE=1
