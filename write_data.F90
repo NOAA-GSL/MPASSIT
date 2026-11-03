@@ -1499,10 +1499,12 @@ contains
                 if (trim(varname) == 'PHB') then
                    do n = clb(1),cub(1)
                    do j = clb(2),cub(2)
-                      if (dum3dptr(n,j,1) == missing_value) cycle
+                      if (dum3dptr(n,j,1) == missing_value) then
+                         dum3d(n, j, :) = missing_value
+                         cycle
+                      end if
                       do k = 2, nzp1_input
                          dum3d(n, j, k - 1) = 0.5*(dum3dptr(n, j, k) + dum3dptr(n, j, k - 1))
-                         dum3d(n,j, k - 1) = dum3dptr(n,j, k - 1) * 9.81
                       end do
                    end do
                    end do
@@ -1510,11 +1512,13 @@ contains
                    error = nf90_put_var(ncid, id_z, dum3d(:,:,1:nz_input), start = (/clb(1),clb(2),1,1/), & 
                                 count=(/count1, count2, nz_input, 1/))
                    call netcdf_err(error, 'WRITING RECORD')
-
-                        !dum3dp1 = dum3dp1*9.81
                 end if
 
                 dum3d(:, :, :) = dum3dptr(clb(1):cub(1),clb(2):cub(2),:)
+                ! PHB is interpolated as height (m); WRF expects geopotential (m^2/s^2)
+                if (trim(varname) == 'PHB') then
+                   where (dum3d /= missing_value) dum3d = dum3d*9.81
+                end if
                 if (localpet==0) print *, trim(varname), minval(dum3d), maxval(dum3d)
                 error = nf90_put_var(ncid, id_vars3_nzp1(i), dum3d, start = (/clb(1),clb(2),1,1/), &
                                         count=(/count1, count2, nz_input + 1, 1/))
